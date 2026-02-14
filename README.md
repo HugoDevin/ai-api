@@ -113,3 +113,21 @@ podman-compose ps
 podman-compose logs --tail=200 ai-server
 curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
 ```
+
+### Q4: `podman-compose exec ai-server ollama list` 一直是空的
+先看 `ai-server` 啟動 log：
+
+```bash
+podman-compose logs --tail=200 ai-server
+```
+
+若看到 `configured models` 顯示成 `${OLLAMA_MODELS...}` 這類未展開字串，代表 compose 在你的環境沒有正確套用預設值。
+新版 entrypoint 會自動回退到 `llama3 mistral`，請重建並重啟：
+
+```bash
+podman-compose down
+podman-compose build --no-cache ai-server
+podman-compose up -d
+```
+
+模型首次下載需要時間，下載完成前 `ollama list` 可能暫時為空。

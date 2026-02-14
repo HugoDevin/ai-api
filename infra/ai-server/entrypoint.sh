@@ -1,7 +1,18 @@
 #!/bin/sh
 set -eu
 
-OLLAMA_MODELS="${OLLAMA_MODELS:-llama3 mistral}"
+DEFAULT_OLLAMA_MODELS="llama3 mistral"
+RAW_OLLAMA_MODELS="${OLLAMA_MODELS:-}"
+
+if [ -z "${RAW_OLLAMA_MODELS}" ] ||
+  [ "${RAW_OLLAMA_MODELS}" = '${OLLAMA_MODELS}' ] ||
+  [ "${RAW_OLLAMA_MODELS}" = '${OLLAMA_MODELS:-llama3 mistral}' ] ||
+  [ "${RAW_OLLAMA_MODELS}" = '${OLLAMA_MODELS:-"llama3 mistral"}' ]; then
+  OLLAMA_MODELS="${DEFAULT_OLLAMA_MODELS}"
+else
+  # Normalize accidental surrounding quotes (for example: "llama3 mistral").
+  OLLAMA_MODELS="$(printf '%s' "${RAW_OLLAMA_MODELS}" | sed -e 's/^"//' -e 's/"$//')"
+fi
 
 ollama serve &
 OLLAMA_PID=$!
