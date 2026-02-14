@@ -4,7 +4,9 @@ FROM ollama/ollama:latest
 ENV OLLAMA_MODELS="llama3 mistral"
 
 COPY infra/ai-server/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# WSL/Windows 可能帶入 CRLF，轉為 LF 避免 "No such file or directory" 啟動錯誤。
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 11434
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["sh", "/entrypoint.sh"]
+

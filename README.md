@@ -74,3 +74,26 @@ curl -X POST http://localhost:8080/api/v1/analyze \
   -H "Content-Type: application/json" \
   -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
 ```
+
+
+## 6) 常見問題排除
+
+### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
+常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。
+
+如果你之前建過舊 image，請強制重建：
+
+```bash
+podman-compose down
+podman-compose build --no-cache ai-server
+podman-compose up -d
+```
+
+### Q2: `litellm` logs 卡住沒輸出
+`litellm` 可能在等待 `ai-server` ready 或沒有請求進來。可先檢查：
+
+```bash
+podman-compose ps
+podman-compose logs --tail=200 ai-server
+curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
+```
