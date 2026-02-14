@@ -24,6 +24,8 @@ public class AiClientConfig {
             @Value("${app.ai.gateway-api-key}") String apiKey,
             @Value("${app.ai.read-timeout:90s}") Duration readTimeout,
             @Value("${spring.ai.ollama.base-url}") String ollamaBaseUrl) {
+        log.info("[ai-config] spring.ai.ollama.base-url={}, read-timeout={}, authHeader={}",
+                ollamaBaseUrl, readTimeout, maskHeaderValue("Bearer " + apiKey));
         return restClientBuilder -> restClientBuilder
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("X-API-KEY", apiKey)

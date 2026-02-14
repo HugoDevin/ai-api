@@ -15,3 +15,8 @@ app:
 
 server:
   port: 8080
+
+logging:
+  level:
+    com.example.aiapi: INFO
+
