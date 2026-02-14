@@ -16,7 +16,6 @@ Spring Boot (本機執行)
 ## 1) 快速啟動 AI 基建
 
 ```bash
-export AI_GATEWAY_API_KEY=dev-key
 podman-compose up -d --build
 ```
 
@@ -89,7 +88,24 @@ podman-compose build --no-cache ai-server
 podman-compose up -d
 ```
 
-### Q2: `litellm` logs 卡住沒輸出
+### Q2: `curl /v1/models` 回 `{"error":{"message":"No connected db."...}}`
+這通常是 LiteLLM 未讀到有效 `master_key` 設定。
+
+本專案預設已在 `infra/litellm/config.yaml` 寫入 `master_key: dev-key`（開發用）。
+請確認你是用最新檔案並重建 litellm：
+
+```bash
+podman-compose down
+podman-compose up -d --build
+```
+
+驗證：
+
+```bash
+curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
+```
+
+### Q3: `litellm` logs 卡住沒輸出
 `litellm` 可能在等待 `ai-server` ready 或沒有請求進來。可先檢查：
 
 ```bash

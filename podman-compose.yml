@@ -19,8 +19,6 @@ services:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: litellm
     command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
-    environment:
-      LITELLM_MASTER_KEY: ${AI_GATEWAY_API_KEY}
     volumes:
       - ./infra/litellm/config.yaml:/app/config.yaml:ro
     depends_on:

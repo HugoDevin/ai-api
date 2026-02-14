@@ -9,4 +9,6 @@ model_list:
       api_base: http://ai-server:11434
 
 general_settings:
-  master_key: ${LITELLM_MASTER_KEY}
+  # 開發測試預設 key，避免新版本 LiteLLM 在未連 DB 時回覆 "No connected db."
+  # 正式環境請改成安全字串或改為模板化注入。
+  master_key: dev-key
