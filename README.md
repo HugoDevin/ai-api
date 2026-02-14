@@ -184,3 +184,16 @@ export SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434
 然後重啟 Spring Boot。
 
 若你要走 LiteLLM (`/v1/*` OpenAI 相容路徑)，需改用 OpenAI 相容的 Spring AI client。
+
+
+### Q7: 看不到 AI 診斷 log
+本專案已改為使用 Log4j2，設定檔在：`src/main/resources/log4j2-spring.xml`。
+預設會把 `com.example.aiapi` 的 INFO log 同時輸出到 console 與檔案 `logs/ai-api.log`（每日/大小輪替）。
+
+若仍看不到，請確認是用最新程式碼重新啟動 Spring Boot，且啟動參數沒有覆蓋 logging config。
+
+可用以下指令即時查看檔案 log：
+
+```bash
+tail -f logs/ai-api.log
+```

@@ -24,18 +24,23 @@ public class AiClientConfig {
             @Value("${app.ai.gateway-api-key}") String apiKey,
             @Value("${app.ai.read-timeout:90s}") Duration readTimeout,
             @Value("${spring.ai.ollama.base-url}") String ollamaBaseUrl) {
-        log.info("[ai-config] spring.ai.ollama.base-url={}, read-timeout={}, authHeader={}",
+        String configMsg = String.format("[ai-config] spring.ai.ollama.base-url=%s, read-timeout=%s, authHeader=%s",
                 ollamaBaseUrl, readTimeout, maskHeaderValue("Bearer " + apiKey));
+        log.info(configMsg);
         return restClientBuilder -> restClientBuilder
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("X-API-KEY", apiKey)
                 .requestFactory(createRequestFactory(readTimeout))
                 .requestInterceptor((request, body, execution) -> {
-                    log.info("[ai-http] {} {} (baseUrl={})", request.getMethod(), request.getURI(), ollamaBaseUrl);
-                    log.info("[ai-http] Authorization={}, X-API-KEY={}",
+                    String reqMsg = String.format("[ai-http] %s %s (baseUrl=%s)",
+                            request.getMethod(), request.getURI(), ollamaBaseUrl);
+                    String headerMsg = String.format("[ai-http] Authorization=%s, X-API-KEY=%s",
                             maskHeaderValue(request.getHeaders().getFirst("Authorization")),
                             maskHeaderValue(request.getHeaders().getFirst("X-API-KEY")));
-                    log.info("[ai-http] payload={}", new String(body, StandardCharsets.UTF_8));
+                    String payloadMsg = "[ai-http] payload=" + new String(body, StandardCharsets.UTF_8);
+                    log.info(reqMsg);
+                    log.info(headerMsg);
+                    log.info(payloadMsg);
                     return execution.execute(request, body);
                 });
     }

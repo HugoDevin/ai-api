@@ -63,8 +63,9 @@ public class MultiAgentAnalysisService {
 
             return new AnalysisResult(topic, architectOpinion, securityReview, moderatorSummary);
         } catch (RuntimeException ex) {
-            log.error("[ai-analysis] failed topic={} root={} message={}",
-                    topic, ex.getClass().getName(), ex.getMessage(), ex);
+            String errMsg = String.format("[ai-analysis] failed topic=%s root=%s message=%s",
+                    topic, ex.getClass().getName(), ex.getMessage());
+            log.error(errMsg, ex);
             throw new AnalysisFailedException("多代理分析失敗，請稍後再試。", ex);
         }
     }
