@@ -9,9 +9,10 @@
 
 ## 架構
 
-Spring Boot (本機執行)
-→ LiteLLM `http://localhost:4000`
-→ Ollama `ai-server:11434`
+Spring Boot (本機執行，spring-ai-ollama)
+→ Ollama `http://localhost:11434`
+
+LiteLLM `http://localhost:4000` 可獨立驗證模型列表與金鑰，但不是 Ollama `/api/chat` 端點。
 
 ## 1) 快速啟動 AI 基建
 
@@ -43,7 +44,7 @@ export BOOTSTRAP_MODELS="llama3 mistral"
 spring:
   ai:
     ollama:
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:4000}
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
 
 app:
   ai:
@@ -54,7 +55,7 @@ app:
 本機啟動 Spring Boot 前：
 
 ```bash
-export SPRING_AI_OLLAMA_BASE_URL=http://localhost:4000
+export SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434
 export AI_GATEWAY_API_KEY=dev-key
 mvn spring-boot:run
 ```
@@ -164,3 +165,22 @@ podman volume inspect ai-api_ollama-data
 
 若你曾把 `OLLAMA_MODELS` 設成像 `"llama3 mistral"` 這種值，
 Ollama 可能會把它當成「路徑」而不是模型清單，導致你在 `/root/.ollama/models` 看不到檔案。
+
+
+### Q6: `ResourceAccessException` 打到 `http://localhost:4000/api/chat`
+若錯誤是：
+
+```
+org.springframework.web.client.ResourceAccessException: I/O error on POST request for "http://localhost:4000/api/chat"
+```
+
+代表你把 `spring.ai.ollama.base-url` 指到 LiteLLM（4000）了。
+`spring-ai-ollama` 會呼叫 Ollama 原生端點 `/api/chat`，請改成：
+
+```bash
+export SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434
+```
+
+然後重啟 Spring Boot。
+
+若你要走 LiteLLM (`/v1/*` OpenAI 相容路徑)，需改用 OpenAI 相容的 Spring AI client。

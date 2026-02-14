@@ -19,6 +19,7 @@ public class AiClientConfig {
             @Value("${app.ai.gateway-api-key}") String apiKey,
             @Value("${app.ai.read-timeout:90s}") Duration readTimeout) {
         return restClientBuilder -> restClientBuilder
+                .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("X-API-KEY", apiKey)
                 .requestFactory(createRequestFactory(readTimeout));
     }

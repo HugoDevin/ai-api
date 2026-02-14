@@ -3,12 +3,12 @@ spring:
     name: ai-api
   ai:
     ollama:
-      # 指向 LiteLLM/Nginx Gateway，而非 Ollama 直連 URL
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:4000}
+      # 使用 spring-ai-ollama 時，必須指向 Ollama API（/api/chat），預設為本機 Ollama
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
 
 app:
   ai:
-    # 供 RestClientCustomizer 注入 X-API-KEY
+    # 供 RestClientCustomizer 注入 Authorization / X-API-KEY
     gateway-api-key: ${AI_GATEWAY_API_KEY:change-me}
     # 本地模型推論常較慢，建議至少 60~120 秒
     read-timeout: 90s
