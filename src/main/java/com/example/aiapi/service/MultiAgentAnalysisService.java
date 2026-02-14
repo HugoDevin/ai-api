@@ -2,12 +2,16 @@ package com.example.aiapi.service;
 
 import com.example.aiapi.dto.AnalysisResult;
 import com.example.aiapi.exception.AnalysisFailedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MultiAgentAnalysisService {
+
+    private static final Logger log = LoggerFactory.getLogger(MultiAgentAnalysisService.class);
 
     private final ChatClient architectChatClient;
     private final ChatClient securityChatClient;
@@ -59,6 +63,9 @@ public class MultiAgentAnalysisService {
 
             return new AnalysisResult(topic, architectOpinion, securityReview, moderatorSummary);
         } catch (RuntimeException ex) {
+            String errMsg = String.format("[ai-analysis] failed topic=%s root=%s message=%s",
+                    topic, ex.getClass().getName(), ex.getMessage());
+            log.error(errMsg, ex);
             throw new AnalysisFailedException("多代理分析失敗，請稍後再試。", ex);
         }
     }
