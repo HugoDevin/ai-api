@@ -75,6 +75,14 @@ curl -X POST http://localhost:8080/api/v1/analyze \
   -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
 ```
 
+若要繞過 `ChatClient`，直接用原生 Ollama `/api/chat` 流程驗證，可測試：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/analyze-direct \
+  -H "Content-Type: application/json" \
+  -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
+```
+
 
 ## 6) 常見問題排除
 
