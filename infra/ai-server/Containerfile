@@ -9,3 +9,4 @@ RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 11434
 ENTRYPOINT ["sh", "/entrypoint.sh"]
+
