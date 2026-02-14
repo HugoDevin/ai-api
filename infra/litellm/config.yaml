@@ -1,0 +1,12 @@
+model_list:
+  - model_name: llama3
+    litellm_params:
+      model: ollama/llama3
+      api_base: http://ai-server:11434
+  - model_name: mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://ai-server:11434
+
+general_settings:
+  master_key: ${LITELLM_MASTER_KEY}
