@@ -6,7 +6,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.ClientHttpRequestFactories;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +19,16 @@ public class AiClientConfig {
             @Value("${app.ai.gateway-api-key}") String apiKey,
             @Value("${app.ai.read-timeout:90s}") Duration readTimeout) {
         return restClientBuilder -> restClientBuilder
+                .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("X-API-KEY", apiKey)
-                .requestFactory(ClientHttpRequestFactories.get(settings -> settings.readTimeout(readTimeout)));
+                .requestFactory(createRequestFactory(readTimeout));
+    }
+
+    private SimpleClientHttpRequestFactory createRequestFactory(Duration readTimeout) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(readTimeout);
+        requestFactory.setReadTimeout(readTimeout);
+        return requestFactory;
     }
 
     @Bean("architectChatClient")
