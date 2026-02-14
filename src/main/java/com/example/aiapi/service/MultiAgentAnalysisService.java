@@ -2,24 +2,45 @@ package com.example.aiapi.service;
 
 import com.example.aiapi.dto.AnalysisResult;
 import com.example.aiapi.exception.AnalysisFailedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MultiAgentAnalysisService {
 
+    private static final Logger log = LoggerFactory.getLogger(MultiAgentAnalysisService.class);
+
     private final ChatClient architectChatClient;
     private final ChatClient securityChatClient;
     private final ChatClient moderatorChatClient;
+    private final String ollamaBaseUrl;
 
     public MultiAgentAnalysisService(
             @Qualifier("architectChatClient") ChatClient architectChatClient,
             @Qualifier("securityChatClient") ChatClient securityChatClient,
-            @Qualifier("moderatorChatClient") ChatClient moderatorChatClient) {
+            @Qualifier("moderatorChatClient") ChatClient moderatorChatClient,
+            @Value("${spring.ai.ollama.base-url}") String ollamaBaseUrl) {
         this.architectChatClient = architectChatClient;
         this.securityChatClient = securityChatClient;
         this.moderatorChatClient = moderatorChatClient;
+        this.ollamaBaseUrl = ollamaBaseUrl;
+    }
+
+
+    private void logTroubleshootingHint(RuntimeException ex) {
+        String message = ex.getMessage();
+        if (message == null) {
+            return;
+        }
+
+        if (message.contains("Connection refused") && ollamaBaseUrl.contains("localhost")) {
+            log.error("[ai-analysis] hint: base-url={} 連線被拒絕。若 Spring Boot 跑在容器內，localhost 會指向該容器本身，請改用 http://ai-server:11434。",
+                    ollamaBaseUrl);
+        }
     }
 
     public AnalysisResult analyze(String topic) {
@@ -59,6 +80,10 @@ public class MultiAgentAnalysisService {
 
             return new AnalysisResult(topic, architectOpinion, securityReview, moderatorSummary);
         } catch (RuntimeException ex) {
+            String errMsg = String.format("[ai-analysis] failed topic=%s root=%s message=%s",
+                    topic, ex.getClass().getName(), ex.getMessage());
+            log.error(errMsg, ex);
+            logTroubleshootingHint(ex);
             throw new AnalysisFailedException("多代理分析失敗，請稍後再試。", ex);
         }
     }
