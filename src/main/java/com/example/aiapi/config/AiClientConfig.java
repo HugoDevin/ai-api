@@ -1,26 +1,60 @@
 package com.example.aiapi.config;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.ClientHttpRequestFactories;
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 @Configuration
 public class AiClientConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(AiClientConfig.class);
+
     @Bean
     public RestClientCustomizer ollamaGatewayCustomizer(
             @Value("${app.ai.gateway-api-key}") String apiKey,
-            @Value("${app.ai.read-timeout:90s}") Duration readTimeout) {
+            @Value("${app.ai.read-timeout:90s}") Duration readTimeout,
+            @Value("${spring.ai.ollama.base-url}") String ollamaBaseUrl) {
+        log.info("[ai-config] spring.ai.ollama.base-url={}, read-timeout={}, authHeader={}",
+                ollamaBaseUrl, readTimeout, maskHeaderValue("Bearer " + apiKey));
         return restClientBuilder -> restClientBuilder
+                .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("X-API-KEY", apiKey)
-                .requestFactory(ClientHttpRequestFactories.get(settings -> settings.readTimeout(readTimeout)));
+                .requestFactory(createRequestFactory(readTimeout))
+                .requestInterceptor((request, body, execution) -> {
+                    log.info("[ai-http] {} {} (baseUrl={})", request.getMethod(), request.getURI(), ollamaBaseUrl);
+                    log.info("[ai-http] Authorization={}, X-API-KEY={}",
+                            maskHeaderValue(request.getHeaders().getFirst("Authorization")),
+                            maskHeaderValue(request.getHeaders().getFirst("X-API-KEY")));
+                    log.info("[ai-http] payload={}", new String(body, StandardCharsets.UTF_8));
+                    return execution.execute(request, body);
+                });
+    }
+
+    private SimpleClientHttpRequestFactory createRequestFactory(Duration readTimeout) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(readTimeout);
+        requestFactory.setReadTimeout(readTimeout);
+        return requestFactory;
+    }
+
+    private String maskHeaderValue(String value) {
+        if (value == null || value.isBlank()) {
+            return "<empty>";
+        }
+        if (value.length() <= 8) {
+            return "****";
+        }
+        return value.substring(0, 4) + "..." + value.substring(value.length() - 4);
     }
 
     @Bean("architectChatClient")
