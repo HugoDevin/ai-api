@@ -1,0 +1,10 @@
+FROM ollama/ollama:latest
+
+# 預設需要的模型，啟動時會自動檢查/下載。
+ENV OLLAMA_MODELS="llama3 mistral"
+
+COPY infra/ai-server/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 11434
+ENTRYPOINT ["/entrypoint.sh"]
