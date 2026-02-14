@@ -32,7 +32,7 @@ podman-compose up -d --build
 可用環境變數覆蓋：
 
 ```bash
-export OLLAMA_MODELS="llama3 mistral"
+export BOOTSTRAP_MODELS="llama3 mistral"
 ```
 
 ## 3) Spring Boot 對接設定
@@ -113,3 +113,54 @@ podman-compose ps
 podman-compose logs --tail=200 ai-server
 curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
 ```
+
+### Q4: `podman-compose exec ai-server ollama list` 一直是空的
+`BOOTSTRAP_MODELS` 是本專案自訂的「要預先 pull 哪些模型」，
+`OLLAMA_MODELS` 則是 Ollama 官方的「模型存放路徑」環境變數，兩者用途不同。
+
+`curl http://localhost:4000/v1/models` 有資料**不代表** Ollama 本地模型已下載完成。
+LiteLLM 的 `/v1/models` 會回傳它設定檔中的模型清單（`config.yaml`），不是直接等同於 `ollama list` 的本地快取狀態。
+
+先看 `ai-server` 啟動 log：
+
+```bash
+podman-compose logs --tail=200 ai-server
+```
+
+如果看到持續輸出 `ensuring model` / `waiting model to appear in local list`，表示還在下載或整理模型，完成後會看到：
+
+```text
+[ai-server] model bootstrap complete
+```
+
+再驗證本地模型：
+
+```bash
+podman-compose exec ai-server ollama list
+podman-compose exec ai-server curl -s http://localhost:11434/api/tags
+```
+
+若 `bootstrap models` 顯示成 `${BOOTSTRAP_MODELS...}` 這類未展開字串，代表 compose 在你的環境沒有正確套用預設值。請重建：
+
+```bash
+podman-compose down
+podman-compose build --no-cache ai-server
+podman-compose up -d
+```
+
+
+### Q5: 模型實體檔案放在哪裡？
+預設在容器內 `~/.ollama/models`（root 使用者即 `/root/.ollama/models`）。
+
+本專案把該目錄透過 named volume 持久化：`ollama-data:/root/.ollama`，
+所以重建容器後模型仍會保留在 volume 內。
+
+可用以下指令確認：
+
+```bash
+podman-compose exec ai-server sh -c 'echo ${OLLAMA_MODELS:-/root/.ollama/models}; ls -lah /root/.ollama; ls -lah /root/.ollama/models'
+podman volume inspect ai-api_ollama-data
+```
+
+若你曾把 `OLLAMA_MODELS` 設成像 `"llama3 mistral"` 這種值，
+Ollama 可能會把它當成「路徑」而不是模型清單，導致你在 `/root/.ollama/models` 看不到檔案。
