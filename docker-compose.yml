@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
   ai-server:
     build:
       context: .
-      dockerfile: infra/ai-server/Containerfile
+      dockerfile: infra/ai-server/Dockerfile
     image: local/ollama-ai-server:latest
     container_name: ai-server
     environment:
