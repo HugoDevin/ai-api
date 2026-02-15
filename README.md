@@ -103,6 +103,19 @@ sh scripts/start-ai-wsl.sh
 4. 等待 `http://127.0.0.1:11434/api/tags` ready。
 5. 印出容器內 GPU 相關檔案與 `ollama ps` 結果供比對。
 
+#### 一鍵啟動（Docker）
+若你要改用 Docker（例如已驗證 `docker run --gpus all` 可用），可直接執行：
+
+```bash
+sh scripts/start-ai-docker.sh
+```
+
+腳本會自動：
+1. 偵測 `docker compose` plugin（若沒有則 fallback `docker-compose`）。
+2. 使用 `podman-compose.yml + docker-compose.nvidia.yml` 啟動。
+3. 等待 `http://127.0.0.1:11434/api/tags` ready。
+4. 執行 `ollama ps` 顯示目前 Processor（CPU/GPU）狀態。
+
 `ai-server` 在啟動時會自動確保模型存在：
 - `llama3`
 - `mistral`
