@@ -94,6 +94,8 @@ docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
 sh scripts/start-ai-wsl.sh
 ```
 
+> 此腳本已支援 `/bin/sh`（例如 Ubuntu dash），不會再出現 `set: Illegal option -o pipefail`。
+
 腳本會自動：
 1. 檢查 `podman-compose` / `curl` 是否存在。
 2. 優先使用 `podman-compose.nvidia.wsl.yml`（WSL `/dev/dxg` 路徑）。
@@ -168,6 +170,26 @@ curl -X POST http://localhost:8080/api/v1/analyze-httpclient \
 
 
 ## 6) 常見問題排除
+
+
+
+### Q9: 我是 WSL2 + Podman 3.4.2，GPU 在 `docker run --gpus all` 正常，但 Podman 跑 Ollama 仍 CPU
+這種組合很常見：
+- `podman 3.4.x`（無 `podman compose` plugin）
+- rootless Podman
+- WSL2 `/dev/dxg`
+
+在這個版本組合下，即使容器看得到 `/dev/dxg` 與 `libcuda.so.1`，Ollama 仍可能退回 CPU。
+若你已確認以下命令成功：
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
+可先判定「GPU 驅動正常、問題在 Podman+WSL runtime 整合」。建議：
+1. 優先用 Docker 跑 Ollama（你目前環境最容易成功）。
+2. 若要用 `docker compose`，需安裝 compose plugin（目前你的輸出顯示未安裝）。
+3. 或升級 Podman 到較新版本並改走支援更完整的 GPU 路徑。
 
 ### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
 常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。

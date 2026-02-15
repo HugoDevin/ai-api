@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 
 BASE_COMPOSE="podman-compose.yml"
@@ -32,7 +32,7 @@ if ! command -v nvidia-smi >/dev/null 2>&1; then
   warn "nvidia-smi not found. If you expect GPU, install NVIDIA driver/toolkit first."
 else
   log "nvidia-smi detected."
-  nvidia-smi >/dev/null || warn "nvidia-smi command returned non-zero."
+  nvidia-smi >/dev/null 2>&1 || warn "nvidia-smi command returned non-zero."
 fi
 
 if [ ! -f "$BASE_COMPOSE" ]; then
@@ -61,16 +61,20 @@ log "Starting ai stack with override: $use_file"
 podman-compose -f "$BASE_COMPOSE" -f "$use_file" up -d --build
 
 log "Waiting for Ollama API /api/tags on http://127.0.0.1:11434 ..."
-for i in $(seq 1 30); do
+i=1
+while [ "$i" -le 30 ]; do
   if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
     log "Ollama API is ready."
     break
   fi
+
   if [ "$i" -eq 30 ]; then
     echo "[wsl-ai-start][ERROR] Ollama API not ready after timeout." >&2
     podman-compose logs --tail=200 ai-server || true
     exit 1
   fi
+
+  i=$((i + 1))
   sleep 2
 done
 
