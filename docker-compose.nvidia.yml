@@ -6,8 +6,10 @@ services:
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}
-    devices:
-      - "/dev/dxg:/dev/dxg"
-    volumes:
-      - "/usr/lib/wsl/lib:/usr/lib/wsl/lib:ro"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

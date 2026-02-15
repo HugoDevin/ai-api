@@ -59,11 +59,47 @@ podman-compose -f podman-compose.yml -f podman-compose.nvidia.wsl.yml up -d --bu
 
 ```bash
 podman-compose exec ai-server ollama ps
+podman-compose exec ai-server sh -c 'ls -l /dev/dxg; ls -l /usr/lib/wsl/lib/libcuda.so.1'
 ```
 
 > 前提：主機已安裝 NVIDIA Driver（`nvidia-smi` 正常）與對應 runtime/toolkit。  
-> 若主機沒有 `/dev/nvidia0` 但有 `/dev/dxg`，代表你很可能在 WSL2，請使用 `podman-compose.nvidia.wsl.yml`。
+> 若主機沒有 `/dev/nvidia0` 但有 `/dev/dxg`，代表你很可能在 WSL2，請使用 `podman-compose.nvidia.wsl.yml`。  
+> 若 `ollama ps` 仍顯示 CPU，通常代表 Podman + WSL 的 GPU runtime 尚未完整接通（即使 `/dev/dxg` 可見）。此時建議改為：
+> 1) 在 Windows/WSL 主機直接執行 Ollama（GPU）並讓 Spring Boot 連 `http://127.0.0.1:11434`，或  
+> 2) 改用已驗證 GPU 直通較完整的 Docker Desktop + NVIDIA Container Toolkit。
 
+#### Podman vs Docker（NVIDIA）
+- **結論**：不是「Podman 完全不支援 NVIDIA」，而是 **Podman + WSL2** 目前在不同版本/安裝方式下，GPU 直通成功率與穩定性常比 Docker Desktop 低。
+- 若你已確認 `nvidia-smi` 在主機正常，但 `podman-compose` 啟動後 Ollama 仍是 CPU，建議優先改用 Docker 測試，快速排除應用程式因素。
+
+Docker 啟動（NVIDIA）：
+
+```bash
+docker compose -f podman-compose.yml -f docker-compose.nvidia.yml up -d --build
+```
+
+Docker 驗證 GPU：
+
+```bash
+docker compose exec ai-server ollama ps
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
+若 Docker 可以吃到 GPU，而 Podman 不行，基本可判定是容器 runtime/WSL 整合問題，不是 Spring Boot 程式碼問題。
+
+#### 一鍵啟動（WSL）
+如果你想一次執行「關閉舊容器 → 啟動 ai-server/litellm → 等待 Ollama ready → 檢查 GPU 狀態」，可直接執行：
+
+```bash
+sh scripts/start-ai-wsl.sh
+```
+
+腳本會自動：
+1. 檢查 `podman-compose` / `curl` 是否存在。
+2. 優先使用 `podman-compose.nvidia.wsl.yml`（WSL `/dev/dxg` 路徑）。
+3. 若主機缺少 `/dev/dxg`，自動嘗試 fallback 到 `podman-compose.nvidia.legacy.yml`。
+4. 等待 `http://127.0.0.1:11434/api/tags` ready。
+5. 印出容器內 GPU 相關檔案與 `ollama ps` 結果供比對。
 
 `ai-server` 在啟動時會自動確保模型存在：
 - `llama3`
