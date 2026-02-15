@@ -288,6 +288,20 @@ sh scripts/diagnose-wsl-gpu.sh
 
 若升級後仍是 CPU，請優先改走 Docker GPU runtime（你環境已證實 `docker run --gpus all` 可用），或在主機直接跑 Ollama。
 
+### Q13: `docker-credential-desktop.exe: executable file not found in $PATH`
+這代表 Docker CLI 讀到 `~/.docker/config.json` 的 `credsStore`（常見為 `desktop`），
+但目前 WSL 環境找不到對應的 credential helper 執行檔。
+
+可用以下其中一種方式修正：
+1. 安裝/啟用 Docker Desktop WSL integration，確保 helper 可在 WSL PATH 被找到。
+2. 編輯 `~/.docker/config.json`，移除 `credsStore` 欄位後重新登入：
+
+```bash
+docker login
+```
+
+本專案的 `scripts/start-ai-docker.sh` 已新增前置檢查，遇到此情況會先給出明確錯誤與修復建議。
+
 ### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
 常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。
 

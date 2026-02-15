@@ -40,6 +40,27 @@ resolve_compose_cmd() {
   err "docker compose plugin not found (and docker-compose not installed)."
 }
 
+check_docker_credentials_helper() {
+  docker_cfg_dir=${DOCKER_CONFIG:-"$HOME/.docker"}
+  docker_cfg_file="$docker_cfg_dir/config.json"
+
+  if [ ! -f "$docker_cfg_file" ]; then
+    return
+  fi
+
+  helper=$(sed -n 's/.*"credsStore"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$docker_cfg_file" | head -n 1)
+  if [ -z "$helper" ]; then
+    return
+  fi
+
+  helper_bin="docker-credential-$helper"
+  if command -v "$helper_bin" >/dev/null 2>&1 || command -v "$helper_bin.exe" >/dev/null 2>&1; then
+    return
+  fi
+
+  err "docker credential helper '$helper_bin' not found in PATH.\nFix options:\n  1) Install/enable Docker Desktop WSL integration so helper is available.\n  2) Edit $docker_cfg_file to remove credsStore, then run: docker login"
+}
+
 if [ ! -f "$BASE_COMPOSE" ]; then
   err "missing $BASE_COMPOSE in $ROOT_DIR"
 fi
@@ -52,6 +73,7 @@ require_cmd curl
 require_cmd docker
 
 COMPOSE_CMD=$(resolve_compose_cmd)
+check_docker_credentials_helper
 
 if command -v nvidia-smi >/dev/null 2>&1; then
   log "nvidia-smi detected on host."
