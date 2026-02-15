@@ -83,6 +83,14 @@ curl -X POST http://localhost:8080/api/v1/analyze-direct \
   -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
 ```
 
+若要再比對 Java 內建 `HttpClient` 呼叫方式（排除 `RestClient/ChatClient` 差異），可測試：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/analyze-httpclient \
+  -H "Content-Type: application/json" \
+  -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
+```
+
 
 ## 6) 常見問題排除
 
