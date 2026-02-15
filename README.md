@@ -1,148 +1,63 @@
-# AI 開發測試基建（給 Spring Boot 使用）
+# AI 開發測試基建（Docker + NVIDIA GPU 版本）
 
-你要的是「**獨立 AI 環境**」來給 Spring Boot 測試/開發，不是把 Spring Boot 打包進 Docker。
+本文件只保留「**已驗證成功**」的路徑：
+- WSL + Docker Engine
+- NVIDIA GPU
+- Ollama + LiteLLM
 
-本專案現在提供的容器只包含：
-
-- `ai-server`：Ollama（啟動時自動準備模型）
-- `litellm`：Gateway（對外 API Key 驗證）
+---
 
 ## 架構
 
-Spring Boot (本機執行，spring-ai-ollama)
-→ Ollama `http://127.0.0.1:11434`
+- `ai-server`：Ollama（對外 `11434`）
+- `litellm`：Gateway（對外 `4000`）
+- Spring Boot（本機）連 `http://127.0.0.1:11434`
 
-LiteLLM `http://localhost:4000` 可獨立驗證模型列表與金鑰，但不是 Ollama `/api/chat` 端點。
+---
 
-## 1) 快速啟動 AI 基建
+## 1) 啟動 AI 基建（Docker + GPU）
 
-```bash
-podman-compose up -d --build
-```
-
-啟動後：
-- `ai-server`: `localhost:11434`
-- `litellm`: `localhost:4000`
-
-## 2) 模型準備
-
-
-### NVIDIA GPU（Podman）
-若你的主機是 NVIDIA，先確認目前 Podman 型態：
-
-```bash
-podman --version
-podman compose version
-```
-
-- 若 `podman compose` 可用（新版 plugin + CDI）：
-
-```bash
-podman-compose -f podman-compose.yml -f podman-compose.nvidia.yml up -d --build
-```
-
-- 若 `podman compose` 不可用、且 `nvidia.com/gpu=all` 出現 `no such file or directory`：
-  請改用 legacy override（直接映射 `/dev/nvidia*`）：
-
-```bash
-podman-compose -f podman-compose.yml -f podman-compose.nvidia.legacy.yml up -d --build
-```
-
-- 若你在 WSL2，且錯誤為 `stat /dev/nvidia0: no such file or directory`（只有 `/dev/dxg`）：
-  請改用 WSL override：
-
-```bash
-podman-compose -f podman-compose.yml -f podman-compose.nvidia.wsl.yml up -d --build
-```
-
-驗證容器內是否可見 GPU：
-
-```bash
-podman-compose exec ai-server ollama ps
-podman-compose exec ai-server sh -c 'ls -l /dev/dxg; ls -l /usr/lib/wsl/lib/libcuda.so.1'
-```
-
-> 前提：主機已安裝 NVIDIA Driver（`nvidia-smi` 正常）與對應 runtime/toolkit。  
-> 若主機沒有 `/dev/nvidia0` 但有 `/dev/dxg`，代表你很可能在 WSL2，請使用 `podman-compose.nvidia.wsl.yml`。  
-> 若 `ollama ps` 仍顯示 CPU，通常代表 Podman + WSL 的 GPU runtime 尚未完整接通（即使 `/dev/dxg` 可見）。此時建議改為：
-> 1) 在 Windows/WSL 主機直接執行 Ollama（GPU）並讓 Spring Boot 連 `http://127.0.0.1:11434`，或  
-> 2) 改用已驗證 GPU 直通較完整的 Docker Desktop + NVIDIA Container Toolkit。
-
-#### Podman vs Docker（NVIDIA）
-- **結論**：不是「Podman 完全不支援 NVIDIA」，而是 **Podman + WSL2** 目前在不同版本/安裝方式下，GPU 直通成功率與穩定性常比 Docker Desktop 低。
-- 若你已確認 `nvidia-smi` 在主機正常，但 `podman-compose` 啟動後 Ollama 仍是 CPU，建議優先改用 Docker 測試，快速排除應用程式因素。
-
-Docker 啟動（NVIDIA）：
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
-```
-
-Docker 驗證 GPU：
-
-```bash
-docker compose exec ai-server ollama ps
-docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
-```
-
-若 Docker 可以吃到 GPU，而 Podman 不行，基本可判定是容器 runtime/WSL 整合問題，不是 Spring Boot 程式碼問題。
-
-#### 一鍵啟動（WSL）
-如果你想一次執行「關閉舊容器 → 啟動 ai-server/litellm → 等待 Ollama ready → 檢查 GPU 狀態」，可直接執行：
-
-```bash
-sh scripts/start-ai-wsl.sh
-```
-
-> 此腳本已支援 `/bin/sh`（例如 Ubuntu dash），不會再出現 `set: Illegal option -o pipefail`。
-
-腳本會自動：
-1. 檢查 `podman-compose` / `curl` 是否存在。
-2. 優先使用 `podman-compose.nvidia.wsl.yml`（WSL `/dev/dxg` 路徑）。
-3. 若主機缺少 `/dev/dxg`，自動嘗試 fallback 到 `podman-compose.nvidia.legacy.yml`。
-4. 等待 `http://127.0.0.1:11434/api/tags` ready。
-5. 印出容器內 GPU 相關檔案與 `ollama ps` 結果供比對。
-
-#### 一鍵啟動（Docker）
-若你要改用 Docker（例如已驗證 `docker run --gpus all` 可用），可直接執行：
+### 方式 A：一鍵腳本（建議）
 
 ```bash
 sh scripts/start-ai-docker.sh
 ```
 
 腳本會自動：
-1. 偵測 `docker compose` plugin（若沒有則 fallback `docker-compose`）。
-2. 使用 `docker-compose.yml + docker-compose.nvidia.yml` 啟動。
+1. 檢查 `docker compose`（無 plugin 則 fallback `docker-compose`）。
+2. 啟動 `docker-compose.yml + docker-compose.nvidia.yml`。
 3. 等待 `http://127.0.0.1:11434/api/tags` ready。
-4. 執行 `ollama ps` 顯示目前 Processor（CPU/GPU）狀態。
+4. 顯示 `ollama ps`（可看到 CPU/GPU Processor）。
 
-`ai-server` 在啟動時會自動確保模型存在：
-- `llama3`
-- `mistral`
-
-可用環境變數覆蓋：
+### 方式 B：手動啟動
 
 ```bash
-export BOOTSTRAP_MODELS="llama3 mistral"
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
 ```
 
-## 3) Spring Boot 對接設定
+---
 
-`application.yml`（或環境變數）設定：
+## 2) 驗證 GPU / 模型
 
-```yaml
-spring:
-  ai:
-    ollama:
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://127.0.0.1:11434}
+```bash
+# 驗證 Docker GPU runtime
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
 
-app:
-  ai:
-    gateway-api-key: ${AI_GATEWAY_API_KEY:dev-key}
-    read-timeout: 90s
+# 驗證 Ollama 執行器（CPU/GPU）
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml exec ai-server ollama ps
+
+# 快速推論測試
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml exec ai-server ollama run llama3 "hello"
+
+# 驗證本地模型清單
+curl http://127.0.0.1:11434/api/tags
 ```
 
-本機啟動 Spring Boot 前：
+---
+
+## 3) Spring Boot 對接
+
+建議環境變數：
 
 ```bash
 export SPRING_AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
@@ -150,14 +65,17 @@ export AI_GATEWAY_API_KEY=dev-key
 mvn spring-boot:run
 ```
 
-## 4) 驗證 Gateway
+---
+
+## 4) API 驗證
+
+### LiteLLM gateway
 
 ```bash
-curl http://localhost:4000/v1/models \
-  -H "Authorization: Bearer dev-key"
+curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
 ```
 
-## 5) 驗證 Spring API
+### Spring API
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/analyze \
@@ -165,181 +83,42 @@ curl -X POST http://localhost:8080/api/v1/analyze \
   -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
 ```
 
-若要繞過 `ChatClient`，直接用原生 Ollama `/api/chat` 流程驗證，可測試：
+---
 
-```bash
-curl -X POST http://localhost:8080/api/v1/analyze-direct \
-  -H "Content-Type: application/json" \
-  -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
-```
+## 5) 常見問題
 
-若要再比對 Java 內建 `HttpClient` 呼叫方式（排除 `RestClient/ChatClient` 差異），可測試：
+### Q1: `docker-credential-desktop.exe: executable file not found in $PATH`
+你在 WSL 直跑 Docker Engine（非 Docker Desktop integration）時常見。
 
-```bash
-curl -X POST http://localhost:8080/api/v1/analyze-httpclient \
-  -H "Content-Type: application/json" \
-  -d '{"proposal":"請分析在 Kubernetes 上部署高可用支付系統"}'
-```
+目前 `scripts/start-ai-docker.sh` 已自動處理：
+- 偵測 helper 缺失
+- 使用暫時 `DOCKER_CONFIG`（移除 `credsStore/credHelpers`）後繼續啟動
 
-
-## 6) 常見問題排除
-
-
-
-### Q9: 我是 WSL2 + Podman 3.4.2，GPU 在 `docker run --gpus all` 正常，但 Podman 跑 Ollama 仍 CPU
-這種組合很常見：
-- `podman 3.4.x`（無 `podman compose` plugin）
-- rootless Podman
-- WSL2 `/dev/dxg`
-
-在這個版本組合下，即使容器看得到 `/dev/dxg` 與 `libcuda.so.1`，Ollama 仍可能退回 CPU。
-若你已確認以下命令成功：
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
-```
-
-可先判定「GPU 驅動正常、問題在 Podman+WSL runtime 整合」。建議：
-1. 優先用 Docker 跑 Ollama（你目前環境最容易成功）。
-2. 若要用 `docker compose`，需安裝 compose plugin（目前你的輸出顯示未安裝）。
-3. 或升級 Podman 到較新版本並改走支援更完整的 GPU 路徑。
-
-### Q10: `podman run ... nvidia-smi` 顯示 `executable file nvidia-smi not found`
-這通常是映像檔內 `PATH` 沒包含 `nvidia-smi`，不一定代表 GPU 不可用。
-在 WSL 環境可改用 WSL 提供的 binary 路徑：
-
-```bash
-podman run --rm \
-  --device /dev/dxg:/dev/dxg \
-  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
-  -e LD_LIBRARY_PATH=/usr/lib/wsl/lib \
-  docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 \
-  /bin/sh -lc '/usr/lib/wsl/lib/nvidia-smi || nvidia-smi'
-```
-
-若你要一次收集完整診斷資訊（主機、容器、Ollama、Podman 直連測試），可直接跑：
-
-```bash
-sh scripts/diagnose-wsl-gpu.sh
-```
-
-請把完整輸出貼回來，我可以直接判斷是：
-- Podman rootless/WSL runtime 限制
-- Ollama 啟動參數問題
-- 或模型尚未實際進入推論（`ollama ps` 空白）。
-
-### Q11: `Driver Not Loaded`（容器內 `/usr/lib/wsl/lib/nvidia-smi` 無法連線）代表什麼？
-若診斷結果同時出現：
-- `NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver`
-- `Failed to properly shut down NVML: Driver Not Loaded`
-
-且你已確認主機 `nvidia-smi` 正常，表示目前瓶頸是 **Podman + WSL runtime 與 NVIDIA NVML 整合**，不是 Spring Boot 程式碼問題。
-
-可直接採用以下解法（擇一）：
-1. **建議優先**：在 WSL/Windows 主機直接執行 Ollama（GPU），Spring Boot 連 `http://127.0.0.1:11434`。
-2. 改用 Docker GPU runtime 跑 Ollama（你環境已證明 `docker run --gpus all` 可用）。
-3. 升級 Podman 到較新版本（含較完整 GPU/CDI 支援）後再重測。
-
-為了快速判斷，`scripts/diagnose-wsl-gpu.sh` 會在偵測到 `Driver Not Loaded` 時直接輸出 `[RESULT]` 與 `[NEXT]` 建議。
-
-### Q12: 在 WSL Ubuntu 20.04 怎麼升級 Podman？
-你目前環境是 `Podman 3.4.2`，版本偏舊。建議升級到較新版本（至少 4.x 以上）再重測 GPU。
-
-> 升級前建議先備份：`~/.config/containers` 與 `~/.local/share/containers`
-
-1) 移除舊版 Podman（可選，但建議）：
-
-```bash
-sudo apt remove -y podman podman-compose
-```
-
-2) 加入 libcontainers stable repository（Ubuntu 20.04）：
-
-```bash
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/Release.key \
-  | gpg --dearmor \
-  | sudo tee /etc/apt/keyrings/libcontainers-stable.gpg >/dev/null
-
-echo "deb [signed-by=/etc/apt/keyrings/libcontainers-stable.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/ /" \
-  | sudo tee /etc/apt/sources.list.d/devel-kubic-libcontainers-stable.list
-```
-
-3) 安裝新版 Podman 與 compose 工具：
-
-```bash
-sudo apt update
-sudo apt install -y podman podman-compose
-```
-
-4) 驗證版本：
-
-```bash
-podman --version
-podman-compose --version
-```
-
-5) 重跑專案（WSL GPU 路徑）：
-
-```bash
-sh scripts/start-ai-wsl.sh
-sh scripts/diagnose-wsl-gpu.sh
-```
-
-若升級後仍是 CPU，請優先改走 Docker GPU runtime（你環境已證實 `docker run --gpus all` 可用），或在主機直接跑 Ollama。
-
-### Q13: `docker-credential-desktop.exe: executable file not found in $PATH`
-這代表 Docker CLI 讀到 `~/.docker/config.json` 的 `credsStore`（常見為 `desktop`），
-但目前 WSL 環境找不到對應的 credential helper 執行檔。
-
-如果你是 **WSL 內直接使用 Docker Engine（不是 Docker Desktop）**，這很常見。
-本專案的 `scripts/start-ai-docker.sh` 已改為：
-- 自動偵測 helper 缺失
-- 自動建立暫時 `DOCKER_CONFIG`（移除 `credsStore/credHelpers`）再繼續啟動
-
-若你需要 private registry，仍建議擇一：
-1. 安裝/啟用 Docker Desktop WSL integration，讓 helper 可在 PATH 被找到。
-2. 將 `~/.docker/config.json` 調整為不使用 `credsStore/credHelpers`，再執行：
+若你需要 private registry，請執行：
 
 ```bash
 docker login
 ```
 
-### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
-常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。
-
-如果你之前建過舊 image，請強制重建：
+### Q2: `ollama ps` 顯示 CPU
+先確認：
 
 ```bash
-podman-compose down
-podman-compose build --no-cache ai-server
-podman-compose up -d
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
 ```
 
-### Q2: `curl /v1/models` 回 `{"error":{"message":"No connected db."...}}`
-這通常是 LiteLLM 未讀到有效 `master_key` 設定。
+若這條成功但 `ollama ps` 仍 CPU，建議：
+1. 重建並重啟 stack：
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.nvidia.yml down
+   docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
+   ```
+2. 再跑一次 `ollama run llama3 "hello"` 後檢查 `ollama ps`。
 
-本專案預設已在 `infra/litellm/config.yaml` 寫入 `master_key: dev-key`（開發用）。
-請確認你是用最新檔案並重建 litellm：
-
-```bash
-podman-compose down
-podman-compose up -d --build
-```
-
-驗證：
+### Q3: 看即時 log
 
 ```bash
-curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
-```
-
-### Q3: `litellm` logs 卡住沒輸出
-`litellm` 可能在等待 `ai-server` ready 或沒有請求進來。可先檢查：
-
-```bash
-podman-compose ps
-podman-compose logs --tail=200 ai-server
-curl http://localhost:4000/v1/models -H "Authorization: Bearer dev-key"
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml logs -f ai-server
 ```
 
 ### Q4: `podman-compose exec ai-server ollama list` 一直是空的
