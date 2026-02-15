@@ -75,7 +75,7 @@ podman-compose exec ai-server sh -c 'ls -l /dev/dxg; ls -l /usr/lib/wsl/lib/libc
 Docker 啟動（NVIDIA）：
 
 ```bash
-docker compose -f podman-compose.yml -f docker-compose.nvidia.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
 ```
 
 Docker 驗證 GPU：
@@ -112,7 +112,7 @@ sh scripts/start-ai-docker.sh
 
 腳本會自動：
 1. 偵測 `docker compose` plugin（若沒有則 fallback `docker-compose`）。
-2. 使用 `podman-compose.yml + docker-compose.nvidia.yml` 啟動。
+2. 使用 `docker-compose.yml + docker-compose.nvidia.yml` 啟動。
 3. 等待 `http://127.0.0.1:11434/api/tags` ready。
 4. 執行 `ollama ps` 顯示目前 Processor（CPU/GPU）狀態。
 

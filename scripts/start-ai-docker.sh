@@ -4,7 +4,7 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 
-BASE_COMPOSE="podman-compose.yml"
+BASE_COMPOSE="docker-compose.yml"
 GPU_OVERRIDE="docker-compose.nvidia.yml"
 
 log() {

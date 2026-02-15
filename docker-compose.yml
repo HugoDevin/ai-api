@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  ai-server:
+    build:
+      context: .
+      dockerfile: infra/ai-server/Dockerfile
+    image: local/ollama-ai-server:latest
+    container_name: ai-server
+    environment:
+      BOOTSTRAP_MODELS: ${BOOTSTRAP_MODELS:-}
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    volumes:
+      - ./infra/litellm/config.yaml:/app/config.yaml:ro
+    depends_on:
+      - ai-server
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
