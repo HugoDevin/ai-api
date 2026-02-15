@@ -18,8 +18,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
                 "timestamp", Instant.now().toString(),
                 "error", "AI_ANALYSIS_FAILED",
-                "message", ex.getMessage()
+                "message", buildUserMessage(ex)
         ));
+    }
+
+    private String buildUserMessage(AnalysisFailedException ex) {
+        Throwable root = ex;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+
+        String details = root.getMessage();
+        if (details == null) {
+            return ex.getMessage();
+        }
+
+        if (details.contains("Connection refused") || details.contains("getsockopt")) {
+            return ex.getMessage() + "（連線被拒絕：請確認 Ollama 服務可達。若 Spring Boot 在主機執行，建議使用 http://127.0.0.1:11434（避免 localhost 解析到 IPv6 ::1）；若在容器內，請使用 http://ai-server:11434）";
+        }
+        return ex.getMessage();
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
