@@ -28,19 +28,33 @@ podman-compose up -d --build
 
 
 ### NVIDIA GPU（Podman）
-若你的主機是 NVIDIA，可使用 override 檔啟用 GPU：
+若你的主機是 NVIDIA，先確認目前 Podman 型態：
+
+```bash
+podman --version
+podman compose version
+```
+
+- 若 `podman compose` 可用（新版 plugin + CDI）：
 
 ```bash
 podman-compose -f podman-compose.yml -f podman-compose.nvidia.yml up -d --build
 ```
 
+- 若 `podman compose` 不可用、且 `nvidia.com/gpu=all` 出現 `no such file or directory`：
+  請改用 legacy override（直接映射 `/dev/nvidia*`）：
+
+```bash
+podman-compose -f podman-compose.yml -f podman-compose.nvidia.legacy.yml up -d --build
+```
+
 驗證容器內是否可見 GPU：
 
 ```bash
-podman-compose -f podman-compose.yml -f podman-compose.nvidia.yml exec ai-server ollama ps
+podman-compose exec ai-server ollama ps
 ```
 
-> 前提：主機已安裝 NVIDIA Driver 與 Podman 的 NVIDIA runtime/toolkit。
+> 前提：主機已安裝 NVIDIA Driver（`nvidia-smi` 正常）與對應 runtime/toolkit。
 
 
 `ai-server` 在啟動時會自動確保模型存在：
