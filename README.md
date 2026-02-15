@@ -48,13 +48,21 @@ podman-compose -f podman-compose.yml -f podman-compose.nvidia.yml up -d --build
 podman-compose -f podman-compose.yml -f podman-compose.nvidia.legacy.yml up -d --build
 ```
 
+- 若你在 WSL2，且錯誤為 `stat /dev/nvidia0: no such file or directory`（只有 `/dev/dxg`）：
+  請改用 WSL override：
+
+```bash
+podman-compose -f podman-compose.yml -f podman-compose.nvidia.wsl.yml up -d --build
+```
+
 驗證容器內是否可見 GPU：
 
 ```bash
 podman-compose exec ai-server ollama ps
 ```
 
-> 前提：主機已安裝 NVIDIA Driver（`nvidia-smi` 正常）與對應 runtime/toolkit。
+> 前提：主機已安裝 NVIDIA Driver（`nvidia-smi` 正常）與對應 runtime/toolkit。  
+> 若主機沒有 `/dev/nvidia0` 但有 `/dev/dxg`，代表你很可能在 WSL2，請使用 `podman-compose.nvidia.wsl.yml`。
 
 
 `ai-server` 在啟動時會自動確保模型存在：
