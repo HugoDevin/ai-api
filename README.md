@@ -191,6 +191,30 @@ docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
 2. 若要用 `docker compose`，需安裝 compose plugin（目前你的輸出顯示未安裝）。
 3. 或升級 Podman 到較新版本並改走支援更完整的 GPU 路徑。
 
+### Q10: `podman run ... nvidia-smi` 顯示 `executable file nvidia-smi not found`
+這通常是映像檔內 `PATH` 沒包含 `nvidia-smi`，不一定代表 GPU 不可用。
+在 WSL 環境可改用 WSL 提供的 binary 路徑：
+
+```bash
+podman run --rm \
+  --device /dev/dxg:/dev/dxg \
+  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
+  -e LD_LIBRARY_PATH=/usr/lib/wsl/lib \
+  docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 \
+  /bin/sh -lc '/usr/lib/wsl/lib/nvidia-smi || nvidia-smi'
+```
+
+若你要一次收集完整診斷資訊（主機、容器、Ollama、Podman 直連測試），可直接跑：
+
+```bash
+sh scripts/diagnose-wsl-gpu.sh
+```
+
+請把完整輸出貼回來，我可以直接判斷是：
+- Podman rootless/WSL runtime 限制
+- Ollama 啟動參數問題
+- 或模型尚未實際進入推論（`ollama ps` 空白）。
+
 ### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
 常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。
 
