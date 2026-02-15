@@ -25,4 +25,16 @@ public class AnalysisController {
         AnalysisResult result = analysisService.analyze(request.proposal());
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/analyze-direct")
+    public ResponseEntity<AnalysisResult> analyzeDirect(@Valid @RequestBody AnalyzeRequest request) {
+        AnalysisResult result = analysisService.analyzeDirect(request.proposal());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/analyze-httpclient")
+    public ResponseEntity<AnalysisResult> analyzeHttpClient(@Valid @RequestBody AnalyzeRequest request) {
+        AnalysisResult result = analysisService.analyzeViaHttpClient(request.proposal());
+        return ResponseEntity.ok(result);
+    }
 }
