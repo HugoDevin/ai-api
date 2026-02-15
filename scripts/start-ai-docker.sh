@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 BASE_COMPOSE="docker-compose.yml"
 GPU_OVERRIDE="docker-compose.nvidia.yml"
+TEMP_DOCKER_CONFIG=""
 
 log() {
   echo "[docker-ai-start] $*"
@@ -18,6 +19,12 @@ warn() {
 err() {
   echo "[docker-ai-start][ERROR] $*" >&2
   exit 1
+}
+
+cleanup() {
+  if [ -n "$TEMP_DOCKER_CONFIG" ] && [ -d "$TEMP_DOCKER_CONFIG" ]; then
+    rm -rf "$TEMP_DOCKER_CONFIG"
+  fi
 }
 
 require_cmd() {
@@ -40,7 +47,7 @@ resolve_compose_cmd() {
   err "docker compose plugin not found (and docker-compose not installed)."
 }
 
-check_docker_credentials_helper() {
+prepare_docker_credentials_config() {
   docker_cfg_dir=${DOCKER_CONFIG:-"$HOME/.docker"}
   docker_cfg_file="$docker_cfg_dir/config.json"
 
@@ -58,8 +65,31 @@ check_docker_credentials_helper() {
     return
   fi
 
-  err "docker credential helper '$helper_bin' not found in PATH.\nFix options:\n  1) Install/enable Docker Desktop WSL integration so helper is available.\n  2) Edit $docker_cfg_file to remove credsStore, then run: docker login"
+  TEMP_DOCKER_CONFIG=$(mktemp -d)
+  export DOCKER_CONFIG="$TEMP_DOCKER_CONFIG"
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$docker_cfg_file" "$DOCKER_CONFIG/config.json" <<'PY'
+import json,sys
+src,dst=sys.argv[1],sys.argv[2]
+with open(src,'r',encoding='utf-8') as f:
+    data=json.load(f)
+data.pop('credsStore',None)
+data.pop('credHelpers',None)
+with open(dst,'w',encoding='utf-8') as f:
+    json.dump(data,f,indent=2,ensure_ascii=False)
+    f.write('\n')
+PY
+  else
+    # fallback: drop credsStore/credHelpers lines to avoid missing helper call
+    sed '/"credsStore"/d;/"credHelpers"/d' "$docker_cfg_file" > "$DOCKER_CONFIG/config.json"
+  fi
+
+  warn "docker credential helper '$helper_bin' not found; using temporary DOCKER_CONFIG without credsStore/credHelpers."
+  warn "If you need private registry auth, run 'docker login' (or fix Docker Desktop WSL integration)."
 }
+
+trap cleanup EXIT INT TERM
 
 if [ ! -f "$BASE_COMPOSE" ]; then
   err "missing $BASE_COMPOSE in $ROOT_DIR"
@@ -73,7 +103,7 @@ require_cmd curl
 require_cmd docker
 
 COMPOSE_CMD=$(resolve_compose_cmd)
-check_docker_credentials_helper
+prepare_docker_credentials_config
 
 if command -v nvidia-smi >/dev/null 2>&1; then
   log "nvidia-smi detected on host."
