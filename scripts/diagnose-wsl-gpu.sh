@@ -36,7 +36,23 @@ log "Ollama logs (last 300 lines)"
 try_cmd "podman-compose logs --tail=300 ai-server"
 
 log "Podman direct CUDA checks"
-try_cmd "podman run --rm --device /dev/dxg:/dev/dxg -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro -e LD_LIBRARY_PATH=/usr/lib/wsl/lib docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 /bin/sh -lc 'command -v nvidia-smi || true; command -v /usr/lib/wsl/lib/nvidia-smi || true; /usr/lib/wsl/lib/nvidia-smi || nvidia-smi'"
-try_cmd "podman run --rm --privileged --device /dev/dxg:/dev/dxg -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro -e LD_LIBRARY_PATH=/usr/lib/wsl/lib docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 /bin/sh -lc '/usr/lib/wsl/lib/nvidia-smi || nvidia-smi'"
+echo
+CMD1="podman run --rm --device /dev/dxg:/dev/dxg -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro -e LD_LIBRARY_PATH=/usr/lib/wsl/lib docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 /bin/sh -lc 'command -v nvidia-smi || true; command -v /usr/lib/wsl/lib/nvidia-smi || true; /usr/lib/wsl/lib/nvidia-smi || nvidia-smi'"
+echo "$ $CMD1"
+OUT1=$(sh -c "$CMD1" 2>&1 || true)
+echo "$OUT1"
+
+echo
+CMD2="podman run --rm --privileged --device /dev/dxg:/dev/dxg -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro -e LD_LIBRARY_PATH=/usr/lib/wsl/lib docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 /bin/sh -lc '/usr/lib/wsl/lib/nvidia-smi || nvidia-smi'"
+echo "$ $CMD2"
+OUT2=$(sh -c "$CMD2" 2>&1 || true)
+echo "$OUT2"
+
+if printf '%s\n%s\n' "$OUT1" "$OUT2" | grep -q "Driver Not Loaded"; then
+  echo
+  echo "[wsl-gpu-diagnose][RESULT] Podman-in-container NVML check failed with 'Driver Not Loaded'."
+  echo "[wsl-gpu-diagnose][RESULT] This indicates a Podman+WSL runtime integration limitation (not Spring Boot code)."
+  echo "[wsl-gpu-diagnose][NEXT] Recommended path: run Ollama via Docker GPU runtime or directly on WSL host."
+fi
 
 log "Done. Share full output for diagnosis."

@@ -215,6 +215,66 @@ sh scripts/diagnose-wsl-gpu.sh
 - Ollama 啟動參數問題
 - 或模型尚未實際進入推論（`ollama ps` 空白）。
 
+### Q11: `Driver Not Loaded`（容器內 `/usr/lib/wsl/lib/nvidia-smi` 無法連線）代表什麼？
+若診斷結果同時出現：
+- `NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver`
+- `Failed to properly shut down NVML: Driver Not Loaded`
+
+且你已確認主機 `nvidia-smi` 正常，表示目前瓶頸是 **Podman + WSL runtime 與 NVIDIA NVML 整合**，不是 Spring Boot 程式碼問題。
+
+可直接採用以下解法（擇一）：
+1. **建議優先**：在 WSL/Windows 主機直接執行 Ollama（GPU），Spring Boot 連 `http://127.0.0.1:11434`。
+2. 改用 Docker GPU runtime 跑 Ollama（你環境已證明 `docker run --gpus all` 可用）。
+3. 升級 Podman 到較新版本（含較完整 GPU/CDI 支援）後再重測。
+
+為了快速判斷，`scripts/diagnose-wsl-gpu.sh` 會在偵測到 `Driver Not Loaded` 時直接輸出 `[RESULT]` 與 `[NEXT]` 建議。
+
+### Q12: 在 WSL Ubuntu 20.04 怎麼升級 Podman？
+你目前環境是 `Podman 3.4.2`，版本偏舊。建議升級到較新版本（至少 4.x 以上）再重測 GPU。
+
+> 升級前建議先備份：`~/.config/containers` 與 `~/.local/share/containers`
+
+1) 移除舊版 Podman（可選，但建議）：
+
+```bash
+sudo apt remove -y podman podman-compose
+```
+
+2) 加入 libcontainers stable repository（Ubuntu 20.04）：
+
+```bash
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/Release.key \
+  | gpg --dearmor \
+  | sudo tee /etc/apt/keyrings/libcontainers-stable.gpg >/dev/null
+
+echo "deb [signed-by=/etc/apt/keyrings/libcontainers-stable.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/ /" \
+  | sudo tee /etc/apt/sources.list.d/devel-kubic-libcontainers-stable.list
+```
+
+3) 安裝新版 Podman 與 compose 工具：
+
+```bash
+sudo apt update
+sudo apt install -y podman podman-compose
+```
+
+4) 驗證版本：
+
+```bash
+podman --version
+podman-compose --version
+```
+
+5) 重跑專案（WSL GPU 路徑）：
+
+```bash
+sh scripts/start-ai-wsl.sh
+sh scripts/diagnose-wsl-gpu.sh
+```
+
+若升級後仍是 CPU，請優先改走 Docker GPU runtime（你環境已證實 `docker run --gpus all` 可用），或在主機直接跑 Ollama。
+
 ### Q1: `ai-server` 出現 `/entrypoint.sh: No such file or directory`
 常見原因是 Windows/WSL 把 shell script 轉成 CRLF。現在 `infra/ai-server/Containerfile` 已在 build 時做 `sed -i 's/\r$//'`，並用 `sh /entrypoint.sh` 啟動，避免 shebang 解析失敗。
 
