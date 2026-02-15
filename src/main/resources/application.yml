@@ -4,7 +4,7 @@ spring:
   ai:
     ollama:
       # 使用 spring-ai-ollama 時，必須指向 Ollama API（/api/chat），預設為本機 Ollama
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://127.0.0.1:11434}
 
 app:
   ai:

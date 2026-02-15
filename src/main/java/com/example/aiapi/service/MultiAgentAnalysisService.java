@@ -44,7 +44,7 @@ public class MultiAgentAnalysisService {
         }
 
         if (message.contains("Connection refused") && ollamaBaseUrl.contains("localhost")) {
-            log.error("[ai-analysis] hint: base-url={} 連線被拒絕。若 Spring Boot 跑在容器內，localhost 會指向該容器本身，請改用 http://ai-server:11434。",
+            log.error("[ai-analysis] hint: base-url={} 連線被拒絕。若在主機環境執行，請先改用 http://127.0.0.1:11434（避免 localhost 走 IPv6 ::1）；若在容器內請改用 http://ai-server:11434。",
                     ollamaBaseUrl);
         }
     }

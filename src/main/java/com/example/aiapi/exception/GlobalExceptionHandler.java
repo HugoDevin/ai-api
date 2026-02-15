@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
         }
 
         if (details.contains("Connection refused") || details.contains("getsockopt")) {
-            return ex.getMessage() + "（連線被拒絕：請確認 Ollama 服務可達。若 Spring Boot 在容器內，請把 SPRING_AI_OLLAMA_BASE_URL 設為 http://ai-server:11434；若在主機執行則用 http://localhost:11434）";
+            return ex.getMessage() + "（連線被拒絕：請確認 Ollama 服務可達。若 Spring Boot 在主機執行，建議使用 http://127.0.0.1:11434（避免 localhost 解析到 IPv6 ::1）；若在容器內，請使用 http://ai-server:11434）";
         }
         return ex.getMessage();
     }

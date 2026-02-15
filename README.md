@@ -10,7 +10,7 @@
 ## 架構
 
 Spring Boot (本機執行，spring-ai-ollama)
-→ Ollama `http://localhost:11434`
+→ Ollama `http://127.0.0.1:11434`
 
 LiteLLM `http://localhost:4000` 可獨立驗證模型列表與金鑰，但不是 Ollama `/api/chat` 端點。
 
@@ -44,7 +44,7 @@ export BOOTSTRAP_MODELS="llama3 mistral"
 spring:
   ai:
     ollama:
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://127.0.0.1:11434}
 
 app:
   ai:
@@ -55,7 +55,7 @@ app:
 本機啟動 Spring Boot 前：
 
 ```bash
-export SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434
+export SPRING_AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
 export AI_GATEWAY_API_KEY=dev-key
 mvn spring-boot:run
 ```
@@ -186,7 +186,7 @@ org.springframework.web.client.ResourceAccessException: I/O error on POST reques
 `spring-ai-ollama` 會呼叫 Ollama 原生端點 `/api/chat`，請改成：
 
 ```bash
-export SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434
+export SPRING_AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
 然後重啟 Spring Boot。
@@ -216,13 +216,13 @@ I/O error on POST request for "http://localhost:11434/api/chat": Connection refu
 ```
 
 通常是「Spring Boot 執行位置」與 base-url 不匹配：
-- Spring Boot 在**主機**上跑：用 `http://localhost:11434`
+- Spring Boot 在**主機**上跑：優先用 `http://127.0.0.1:11434`（避免 `localhost` 走 IPv6 `::1`）
 - Spring Boot 在**容器**裡跑：用 `http://ai-server:11434`（同一 compose network）
 
 可先從 Spring Boot 所在環境測試：
 
 ```bash
-curl http://localhost:11434/api/tags
+curl http://127.0.0.1:11434/api/tags
 # 或（容器內）
 curl http://ai-server:11434/api/tags
 ```
@@ -231,11 +231,11 @@ curl http://ai-server:11434/api/tags
 
 ### Q9: API 回 `AI_ANALYSIS_FAILED` 並提示 `Connection refused`
 新版 API 錯誤訊息會在連線被拒絕時附上環境提示：
-- Spring Boot 在主機：`SPRING_AI_OLLAMA_BASE_URL=http://localhost:11434`
+- Spring Boot 在主機：`SPRING_AI_OLLAMA_BASE_URL=http://127.0.0.1:11434`
 - Spring Boot 在容器：`SPRING_AI_OLLAMA_BASE_URL=http://ai-server:11434`
 
 可先確認 Ollama 健康狀態：
 
 ```bash
-curl http://localhost:11434/api/tags
+curl http://127.0.0.1:11434/api/tags
 ```
